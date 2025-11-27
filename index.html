@@ -1,0 +1,184 @@
+import { useState, useEffect } from 'react';
+import { Link, ExternalLink, Copy, Check } from 'lucide-react';
+
+export default function ShortlinkApp() {
+  const [links, setLinks] = useState({});
+  const [longUrl, setLongUrl] = useState('');
+  const [customSlug, setCustomSlug] = useState('');
+  const [copiedSlug, setCopiedSlug] = useState('');
+  const [error, setError] = useState('');
+
+  const generateSlug = () => {
+    return Math.random().toString(36).substring(2, 8);
+  };
+
+  const createShortlink = () => {
+    setError('');
+
+    if (!longUrl) {
+      setError('URL tidak boleh kosong!');
+      return;
+    }
+
+    try {
+      new URL(longUrl);
+    } catch {
+      setError('URL tidak valid! Pastikan menggunakan format https://...');
+      return;
+    }
+
+    const slug = customSlug || generateSlug();
+
+    if (links[slug]) {
+      setError('Slug sudah digunakan! Gunakan slug lain.');
+      return;
+    }
+
+    setLinks({ ...links, [slug]: longUrl });
+    setLongUrl('');
+    setCustomSlug('');
+  };
+
+  const handleRedirect = (slug) => {
+    const url = links[slug];
+    if (url) {
+      window.open(url, '_blank');
+    }
+  };
+
+  const copyToClipboard = (slug) => {
+    const shortUrl = `${window.location.origin}/#/${slug}`;
+    navigator.clipboard.writeText(shortUrl);
+    setCopiedSlug(slug);
+    setTimeout(() => setCopiedSlug(''), 2000);
+  };
+
+  const deleteLink = (slug) => {
+    const newLinks = { ...links };
+    delete newLinks[slug];
+    setLinks(newLinks);
+  };
+
+  useEffect(() => {
+    const hash = window.location.hash.slice(2);
+    if (hash && links[hash]) {
+      setTimeout(() => {
+        window.location.href = links[hash];
+      }, 500);
+    }
+  }, [links]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Link className="w-10 h-10 text-indigo-600" />
+            <h1 className="text-3xl font-bold text-gray-800">URL Shortener</h1>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                URL Panjang
+              </label>
+              <input
+                type="text"
+                value={longUrl}
+                onChange={(e) => setLongUrl(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && createShortlink()}
+                placeholder="https://example.com/very/long/url..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Custom Slug (opsional)
+              </label>
+              <input
+                type="text"
+                value={customSlug}
+                onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                onKeyPress={(e) => e.key === 'Enter' && createShortlink()}
+                placeholder="my-link"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">Kosongkan untuk generate otomatis</p>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <button
+              onClick={createShortlink}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition-colors"
+            >
+              Buat Shortlink
+            </button>
+          </div>
+        </div>
+
+        {Object.keys(links).length > 0 && (
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Shortlinks Anda</h2>
+            <div className="space-y-3">
+              {Object.entries(links).map(([slug, url]) => (
+                <div key={slug} className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono text-indigo-600 font-semibold">
+                        /{slug}
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(slug)}
+                        className="text-gray-400 hover:text-indigo-600 transition-colors"
+                        title="Copy link"
+                      >
+                        {copiedSlug === slug ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-600 truncate">{url}</p>
+                  </div>
+                  <button
+                    onClick={() => handleRedirect(slug)}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Buka
+                  </button>
+                  <button
+                    onClick={() => deleteLink(slug)}
+                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-semibold text-blue-900 mb-2">Cara Menggunakan:</h3>
+          <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+            <li>Masukkan URL panjang yang ingin dipendekkan</li>
+            <li>Opsional: Buat custom slug atau biarkan kosong untuk otomatis</li>
+            <li>Klik "Buat Shortlink"</li>
+            <li>Copy link pendek atau klik "Buka" untuk test redirect</li>
+          </ol>
+          <p className="text-xs text-blue-700 mt-3">
+            💡 Shortlink akan tersimpan di browser Anda dan langsung redirect saat diakses
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
